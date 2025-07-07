@@ -1,5 +1,3 @@
-using System;
-using System.Collections;
 using System.Diagnostics;
 using OpenCVForUnity.CoreModule;
 using OpenCvSharp;
@@ -15,23 +13,37 @@ public class CamVision : MonoBehaviour
     public RenderTexture leftRenderTexture;
     public RenderTexture rightRenderTexture;
     public RawImage depthImage;
-    public GameObject linePrefab;
-    
+    public GameObject newLine;
+
+    private readonly Vector3 shift = Vector3.up * 1.5f;
+    private int i = 1;
+    private int j = 1;
+    private int k = 1;
+
+    private LineRenderer lineRenderer;
     private Mat matLeft;
     private Mat matRight;
+    private readonly int raysCount = 10;
     private Texture2D texture2D;
 
-
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-
-    // Update is called once per frame
     private void Start()
     {
+        lineRenderer = gameObject.AddComponent<LineRenderer>();
+        lineRenderer.startWidth = 0.01f;
+        lineRenderer.endWidth = 0.01f;
+        lineRenderer.startColor = Color.red;
+        lineRenderer.endColor = Color.red;
+        lineRenderer.material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        InvokeRepeating(nameof(CastRays), .1f, 0.1f);
     }
 
     private void FixedUpdate()
     {
-        CastRays();
+    }
+
+    private void OnRenderObject()
+    {
+        Graphics.DrawProceduralNow(MeshTopology.Points, 1, 10);
     }
 
     private void showStereo()
@@ -62,42 +74,26 @@ public class CamVision : MonoBehaviour
 
     private void CastRays()
     {
-        int raysCount = 10;
-        
-        for (var x = 1; x <= raysCount; x++) 
+        var count = 0;
+
+        if (j <= raysCount)
         {
-            for (var y = 1; y <= raysCount; y++)
-            {
-                for (var z = 1; z <= raysCount; z++)
-                {
-                    GameObject newLine = Instantiate(linePrefab, transform);
-
-                    // Get the LineRenderer component
-                    LineRenderer lineRenderer = newLine.GetComponent<LineRenderer>();
-
-                    GameObject childObj = new GameObject("name" + y);
-                    childObj.transform.parent = gameObject.transform;
-                    lineRenderer.transform.parent = childObj.transform;
-                    childObj.transform.Translate(Vector3.up * 1);
-                    RaycastHit hit;
-                    Vector3 shift = Vector3.up * 1.5f;
-                    Vector3 vector = Quaternion.Euler((360 / (raysCount / 3)) * x, (360 / (raysCount / 3)) * y, (360 / (raysCount / 3)) * z) * Vector3.forward;
-                    if (Physics.Raycast(transform.position + shift, vector, out hit))
-                    {
-                        lineRenderer.SetPosition(0, transform.position + shift);
-                        lineRenderer.SetPosition(1, hit.point);
-                    }
-
-                    StartCoroutine(DestructLine(childObj));
-                }
-            }
+            j++;
+        } 
+        
+        if (j > raysCount)
+        {
+            j = 0;
         }
-    }
-    
-    IEnumerator DestructLine(GameObject obj)
-    {
-        yield return new WaitForSeconds(0.02f);
-        Destroy(obj);
+
+        RaycastHit hit;
+        var degree = 360 / raysCount;
+        var vector = Quaternion.Euler(0, j * degree, 0) * Vector3.forward;
+        if (Physics.Raycast(transform.position + shift, vector, out hit))
+        {
+            lineRenderer.SetPosition(0, transform.position + shift);
+            lineRenderer.SetPosition(1, hit.point);
+        }
     }
 
     private Texture2D toTexture(RenderTexture myRenderTexture)
